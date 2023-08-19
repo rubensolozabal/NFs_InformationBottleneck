@@ -91,10 +91,16 @@ class DownsampleCouplingBlock(nn.Module):
             y2 = self.up(y2, 1)
 
         self.last_jac = j1 + j2
+
+        self.last_jac_diag = torch.cat((a2[:,:y1.shape[1]], a1[:,:y2.shape[1]]), 1).flatten(1)         #r.s.o
+
         return [torch.cat((y1, y2), 1)]
 
     def jacobian(self, x, c=[], rev=False):
         return self.last_jac
+
+    def jacobian_diag(self, x, c=[], rev=False):    #r.s.o
+        return self.last_jac_diag
 
     def output_dims(self, input_dims):
         output_dims = [k for k in input_dims[0]]

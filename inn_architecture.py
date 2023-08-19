@@ -11,6 +11,8 @@ import FrEIA.modules as Fm
 from downsampling_coupling_block import DownsampleCouplingBlock
 from all_in_one_block import AIO_Block
 from dct_transform import DCTPooling2d
+from glow_coupling_block import GLOWCouplingBlock
+from permute_random import PermuteRandom
 
 def construct_irevnet(classifier):
     inn = constuct_inn(classifier)
@@ -157,8 +159,10 @@ def constuct_inn(classifier, verbose=False):
         nodes.append(Ff.Node(nodes[-1].out0, Fm.Flatten, {}, name='Flatten'))
 
     for k in range(n_coupling_blocks_fc):
-        nodes.append(Ff.Node(nodes[-1], Fm.PermuteRandom, {'seed':k}, name=f'PERM_FC_{k}'))
-        nodes.append(Ff.Node(nodes[-1].out0, Fm.GLOWCouplingBlock, {'subnet_constructor':fc_constr, 'clamp':2.0}, name=f'FC_{k}'))
+        # nodes.append(Ff.Node(nodes[-1], Fm.PermuteRandom, {'seed':k}, name=f'PERM_FC_{k}'))
+        #nodes.append(Ff.Node(nodes[-1].out0, Fm.GLOWCouplingBlock, {'subnet_constructor':fc_constr, 'clamp':2.0}, name=f'FC_{k}'))
+        nodes.append(Ff.Node(nodes[-1], PermuteRandom, {'seed':k}, name=f'PERM_FC_{k}'))                                               #r.s.o
+        nodes.append(Ff.Node(nodes[-1].out0, GLOWCouplingBlock, {'subnet_constructor':fc_constr, 'clamp':2.0}, name=f'FC_{k}'))      #r.s.o
 
     nodes.append(Ff.OutputNode(nodes[-1], name='output'))
     return Ff.ReversibleGraphNet(nodes, verbose=verbose)

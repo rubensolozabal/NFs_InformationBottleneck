@@ -1,0 +1,83 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "3"},
+            "args": [
+                "train",
+                "experiments_configs/cifar10/beta_ramp/beta_1.0000.ini"
+            ]
+        },
+        {
+            "name": "Train_cNLL",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "3"},
+            "args": [
+                "train",
+                "experiments_configs/cifar10/ablations/class_nll.ini"
+            ]
+        },
+        {
+            "name": "Train_klj",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "3"},
+            "args": [
+                "train",
+                "experiments_configs/cifar10/beta_ramp_klj/beta_0.03_alpha_0.0.ini"
+            ]
+        },
+        {
+            "name": "Test",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "3"},
+            "args": [
+                "test",
+                "experiments_configs/cifar10/beta_ramp/beta_1.0000.ini"
+            ]
+        },
+        {
+            "name": "Test_klj",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "3"},
+            "args": [
+                "test",
+                "experiments_configs/cifar10/cNLL_klj/alpha_0.01.ini"         // experiments_configs/cifar10/cNLL_klj/alpha_0.0.ini 
+            ]
+        }
+    ]
+}
+
+

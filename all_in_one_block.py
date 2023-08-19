@@ -103,6 +103,8 @@ class AIO_Block(nn.Module):
             x2, j2 = self.affine(x2, a1, rev=True)
 
         self.last_jac = j2
+        self.last_jac_diag = torch.cat((torch.ones_like(x1), a1[:,:x2.shape[1]]),1).flatten(1)       #r.s.o
+
         x_out = torch.cat((x1, x2), 1)
 
         if not rev:
@@ -112,6 +114,10 @@ class AIO_Block(nn.Module):
 
     def jacobian(self, x, c=[], rev=False):
         return self.last_jac + (-1)**rev * self.act_norm.sum() * self.n_pixels
+
+    #r.s.o
+    def jacobian_diag(self, x, c=[], rev=False):
+        return self.last_jac_diag #+ (-1)**rev * self.act_norm.sum() * self.n_pixels
 
     def output_dims(self, input_dims):
         return input_dims

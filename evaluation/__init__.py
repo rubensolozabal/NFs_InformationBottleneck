@@ -110,11 +110,11 @@ def test(args):
     fig_fname              = os.path.join(output_dir, 'figs.pdf')
 
     vib_model              = eval(args['ablations']['vib'])
-    eval_ood_detection     = False and eval(args['evaluation']['ood'])
+    eval_ood_detection     = eval(args['evaluation']['ood'])
     # I put these in the config at first, but they don't really take that long:
     eval_sample_generation = True
-    eval_calibration       = False
-    eval_test_acc          = False
+    eval_calibration       = True
+    eval_test_acc          = True
     eval_latent_pca_plot   = False
 
 

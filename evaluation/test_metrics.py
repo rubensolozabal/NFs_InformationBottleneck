@@ -5,7 +5,14 @@ def test_metrics(inn, data, args):
     metrics = {'accuracy':     [],
                'bits_per_dim': [],
                'L_x':          [],
-               'L_y':          []}
+               'L_y':          [],
+               'recall@1':      [],
+               'recall@2':      [],
+               'recall@5':      [],
+               'precision@1':   [],
+               'precision@2':   [],
+               'precision@5':   [],
+               'auroc':         [],}
 
 
     with torch.no_grad():
@@ -26,6 +33,16 @@ def test_metrics(inn, data, args):
 
             metrics['bits_per_dim'].append(bpd)
             metrics['accuracy'].append(100. * output['acc_val'].item())
+
+            metrics['recall@1'].append(output['recall@1'].item())
+            metrics['recall@2'].append(output['recall@2'].item())
+            metrics['recall@5'].append(output['recall@5'].item())
+            metrics['precision@1'].append(output['precision@1'].item())
+            metrics['precision@2'].append(output['precision@2'].item())
+            metrics['precision@5'].append(output['precision@5'].item())
+            metrics['auroc'].append(output['auroc'].item())
+
+
 
     for k in metrics:
         # has to be cast from np.float32 to float() explicitly,

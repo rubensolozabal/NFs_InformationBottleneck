@@ -1,7 +1,7 @@
 import os
 from os.path import join, isfile, basename
 from time import time
-
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -38,16 +38,21 @@ class StandardTransform(object):
         return '\n'.join(body)
 
 class LabelAugmentor():
-    def __init__(self, mapping=list(range(10))):
+    def __init__(self, ratio_label_noise=0.0, mapping=list(range(10))):
         self.mapping = mapping
+        self.ratio_label_noise = ratio_label_noise
 
     def __call__(self, l):
-        return int(self.mapping[l])
+        if random.random() < self.ratio_label_noise:
+            return random.randint(0, self.mapping[-1])
+        else:
+            return int(self.mapping[l])
 
 class Augmentor():
-    def __init__(self, deterministic, noise_amplitde, uniform_dequantize, beta, gamma, tanh, ch_pad=0, ch_pad_sig=0):
+    def __init__(self, deterministic, noise_amplitde, ratio_samples_noise, uniform_dequantize, beta, gamma, tanh, ch_pad=0, ch_pad_sig=0):
         self.deterministic      = deterministic
         self.sigma_noise        = noise_amplitde
+        self.ratio_samples_noise = ratio_samples_noise
         self.uniform_dequantize = uniform_dequantize
         self.beta               = beta
         self.gamma              = gamma
@@ -60,7 +65,7 @@ class Augmentor():
         if not self.deterministic:
             if self.uniform_dequantize:
                 x += torch.rand_like(x) / 256.
-            if self.sigma_noise > 0.:
+            if self.sigma_noise > 0. and random.random() < self.ratio_samples_noise:
                 x += self.sigma_noise * torch.randn_like(x)
 
         x = self.gamma * (x - self.beta)
@@ -97,10 +102,13 @@ class Dataset():
         self.batch_size   = eval(args['data']['batch_size'])
         tanh              = eval(args['data']['tanh_augmentation'])
         self.sigma        = eval(args['data']['noise_amplitde'])
+        ratio_samples_noise = eval(args['data']['ratio_samples_noise'])
+        ratio_label_noise  = eval(args['data']['ratio_label_noise'])
         unif              = eval(args['data']['dequantize_uniform'])
         label_smoothing   = eval(args['data']['label_smoothing'])
         channel_pad       = eval(args['data']['pad_noise_channels'])
         channel_pad_sigma = eval(args['data']['pad_noise_std'])
+        tv_split          = eval(args['data']['tv_split'])       # r.s.o train/val split
 
         if self.dataset == 'MNIST':
             beta = 0.5
@@ -109,8 +117,8 @@ class Dataset():
             beta = torch.Tensor((0.4914, 0.4822, 0.4465)).view(-1, 1, 1)
             gamma = 1. / torch.Tensor((0.247, 0.243, 0.261)).view(-1, 1, 1)
 
-        self.train_augmentor = Augmentor(False, self.sigma, unif, beta, gamma, tanh, channel_pad, channel_pad_sigma)
-        self.test_augmentor =  Augmentor(True,  0.,         unif, beta, gamma, tanh, channel_pad, channel_pad_sigma)
+        self.train_augmentor = Augmentor(False, self.sigma, ratio_samples_noise, unif, beta, gamma, tanh, channel_pad, channel_pad_sigma)
+        self.test_augmentor =  Augmentor(True,  0.,         ratio_samples_noise, unif, beta, gamma, tanh, channel_pad, channel_pad_sigma)
         self.transform = T.Compose([T.ToTensor(), self.test_augmentor])
 
         if self.dataset == 'MNIST':
@@ -120,7 +128,7 @@ class Dataset():
             self.channels = 1
             self.n_classes = 10
             self.label_mapping = list(range(self.n_classes))
-            self.label_augment = LabelAugmentor(self.label_mapping)
+            self.label_augment = LabelAugmentor(ratio_label_noise=ratio_label_noise, mapping=self.label_mapping)
             data_dir = 'mnist_data'
 
             self.test_data = torchvision.datasets.MNIST(data_dir, train=False, download=True,
@@ -143,7 +151,7 @@ class Dataset():
                 dataset_class = torchvision.datasets.CIFAR100
 
             self.label_mapping = list(range(self.n_classes))
-            self.label_augment = LabelAugmentor(self.label_mapping)
+            self.label_augment = LabelAugmentor(ratio_label_noise=ratio_label_noise, mapping=self.label_mapping)
 
             self.test_data = dataset_class(data_dir, train=False, download=True,
                                                    transform=T.Compose([T.ToTensor(), self.test_augmentor]),
@@ -162,7 +170,11 @@ class Dataset():
         else:
             raise ValueError(f"what is this dataset, {args['data']['dataset']}?")
 
+
         self.train_data, self.val_data = torch.utils.data.random_split(self.train_data, (len(self.train_data) - 1024, 1024))
+
+        # self.train_data, _ = torch.utils.data.random_split(self.train_data, (int(round(tv_split*len(self.train_data), 1)), len(self.train_data)-int(round(tv_split*len(self.train_data), 1)), 1)) #r.s.o
+
 
         self.val_x = torch.stack([x[0] for x in self.val_data], dim=0).cuda()
         self.val_y = self.onehot(torch.LongTensor([x[1] for x in self.val_data]).cuda(), label_smoothing)

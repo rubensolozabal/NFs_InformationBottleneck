@@ -4,6 +4,7 @@ import torch.nn as nn
 
 '''adapted from https://github.com/zh217/torch-dct'''
 
+
 def dct_1d(x):
     """
     Discrete Cosine Transform, Type II (a.k.a. the DCT)
@@ -17,7 +18,9 @@ def dct_1d(x):
 
     v = torch.cat([x[:, ::2], x[:, 1::2].flip([1])], dim=1)
 
-    Vc = torch.rfft(v, 1, onesided=False)
+    # Vc = torch.rfft(v, 1, onesided=False)
+    Vc = torch.view_as_real(torch.fft.fft(v))           #r.s.o
+
 
     k = - torch.arange(N, dtype=x.dtype, device=x.device)[None, :] * np.pi / (2 * N)
     W_r = torch.cos(k)
@@ -54,7 +57,9 @@ def idct_1d(X):
 
     V = torch.cat([V_r.unsqueeze(2), V_i.unsqueeze(2)], dim=2)
 
-    v = torch.irfft(V, 1, onesided=False)
+    # v = torch.irfft(V, 1, onesided=False)
+    v = torch.real(torch.fft.ifft(torch.view_as_complex(V)))
+    
     x = v.new_zeros(v.shape)
     x[:, ::2] += v[:, :N - (N // 2)]
     x[:, 1::2] += v.flip([1])[:, :N // 2]
@@ -70,7 +75,8 @@ class DCTPooling2d(nn.Module):
         self.jac = (self.N**2 * self.ch) * np.log(rebalance)
 
         assert torch.cuda.is_available(), "please father, give 1 cuda"
-        I = torch.eye(self.N).cuda()
+        # I = torch.eye(self.N).cuda()
+        I = torch.eye(self.N)
 
         self.weight = dct_1d(I).t()
         self.inv_weight = idct_1d(I).t()
@@ -102,6 +108,10 @@ class DCTPooling2d(nn.Module):
 
     def jacobian(self, x, rev=False):
         return self.jac
+
+    
+    def jacobian_diag(self, x, rev=False):              #r.s.o
+        return torch.ones_like(x[0]).flatten(1)
 
     def output_dims(self, input_dims):
         assert len(input_dims) == 1, "Can only use 1 input"

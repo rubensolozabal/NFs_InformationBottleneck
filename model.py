@@ -7,6 +7,9 @@ import numpy as np
 
 import inn_architecture
 import feed_forward_architecture
+from torchmetrics.classification import MulticlassRecall
+from torchmetrics.classification import MulticlassPrecision
+from torchmetrics import AUROC
 import data
 
 class GenerativeClassifier(nn.Module):
@@ -140,6 +143,8 @@ class GenerativeClassifier(nn.Module):
 
         z = self.inn(x)
         jac = self.inn.log_jacobian(run_forward=False)
+        jac_inter = self.inn.log_jacobian(run_forward=False, intermediate_outputs=True)
+        jacobian_diag = self.inn.jacobian_diag(run_forward=False, intermediate_outputs=True)       #r.s.o
 
         log_wy = torch.log_softmax(self.phi, dim=0).view(1, -1)
 
@@ -151,12 +156,43 @@ class GenerativeClassifier(nn.Module):
         losses = {'L_x_tr':    (- torch.logsumexp(- 0.5 * zz + log_wy, dim=1) - jac ) / self.ndim_tot,
                   'logits_tr': - 0.5 * zz}
 
+        # losses['reg_KLJ_tr'] = torch.sum(jacobian_diag**2, dim=1) - torch.sum(torch.log(jacobian_diag**2), dim=1)
+
+        
+        losses['reg_KLJ_tr'] = 0 
+        for key, diagL in jacobian_diag.items():
+            # Version 2
+            losses['reg_KLJ_tr'] += torch.sum(diagL**2, dim=1) 
+            losses['reg_KLJ_tr'] += -2*jac_inter[key]
+
+            # Version 3
+            # losses['reg_KLJ_tr'] += torch.log(torch.sum(diagL**2, dim=1) / diagL.shape[1])
+            # losses['reg_KLJ_tr'] += -2*jac_inter[key] / diagL.shape[1]
+
+        
+        losses['reg_KLJ_tr'] /= len(jacobian_diag)          # Normalize by the number of layers
+
         log_wy = log_wy.detach()
         if y is not None:
             losses['L_cNLL_tr'] = (0.5 * torch.sum(zz * y.round(), dim=1) - jac) / self.ndim_tot
             losses['L_y_tr'] = torch.sum((torch.log_softmax(- 0.5 * zz + log_wy, dim=1) - log_wy) * y, dim=1)
             losses['acc_tr'] = torch.mean((torch.max(y, dim=1)[1]
                                         == torch.max(losses['logits_tr'].detach(), dim=1)[1]).float())
+
+            predicted = losses['logits_tr'].detach().cpu()
+            target = torch.max(y, dim=1)[1].detach().cpu()
+
+
+            losses['recall@1'] = MulticlassRecall(num_classes=self.n_classes, top_k=1)(predicted, target)
+            losses['recall@2'] = MulticlassRecall(num_classes=self.n_classes, top_k=2)(predicted, target)
+            losses['recall@5'] = MulticlassRecall(num_classes=self.n_classes, top_k=5)(predicted, target)
+
+            losses['precision@1'] = MulticlassPrecision(num_classes=self.n_classes, top_k=1)(predicted, target)
+            losses['precision@2'] = MulticlassPrecision(num_classes=self.n_classes, top_k=2)(predicted, target)
+            losses['precision@5'] = MulticlassPrecision(num_classes=self.n_classes, top_k=5)(predicted, target)
+
+            auroc = AUROC(task="multiclass", num_classes=10)
+            losses['auroc'] = auroc(predicted, target)
 
         if loss_mean:
             for k,v in losses.items():
@@ -207,7 +243,14 @@ class GenerativeClassifier(nn.Module):
                 'logits_val':   logits,
                 'L_y_val':      l_y,
                 'acc_val':      acc,
-                'delta_mu_val': mu_dist}
+                'delta_mu_val': mu_dist,
+                'recall@1': losses['recall@1'],
+                'recall@2': losses['recall@2'],
+                'recall@5': losses['recall@5'],
+                'precision@1': losses['precision@1'],
+                'precision@2': losses['precision@2'],
+                'precision@5': losses['precision@5'], 
+                'auroc':             losses['auroc']}
 
     def reset_mu(self, dataset):
         mu = torch.zeros(1, self.n_classes, self.ndim_tot).cuda()
@@ -223,11 +266,11 @@ class GenerativeClassifier(nn.Module):
 
                 mu += mu_batch
                 counter += 1
-                print(counter, end='\r')
+                # print(counter, end='\r')
 
             mu /= counter
         self.mu.data  = mu.data
-        print()
+        # print()
 
     def sample(self, y, temperature=1., temperature_class=1.):
         z = temperature * torch.randn(y.shape[0], self.ndim_tot).cuda()
@@ -250,3 +293,5 @@ class GenerativeClassifier(nn.Module):
             pass
         except:
             print('loading the optimizer went wrong, skipping')
+
+

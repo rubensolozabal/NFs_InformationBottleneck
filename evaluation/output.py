@@ -94,6 +94,18 @@ def to_console(results_dict, out_dir):
 
     log_write('ACC     %.4f' % (results_dict['test_metrics']['accuracy']))
     log_write('BITS    %.4f' % (results_dict['test_metrics']['bits_per_dim']))
+
+    log_write('Recall@1    %.4f' % (results_dict['test_metrics']['recall@1']))
+    log_write('Recall@2    %.4f' % (results_dict['test_metrics']['recall@2']))
+    log_write('Recall@5    %.4f' % (results_dict['test_metrics']['recall@5']))
+
+
+    log_write('Precision@1    %.4f' % (results_dict['test_metrics']['precision@1']))
+    log_write('Precision@2    %.4f' % (results_dict['test_metrics']['precision@2']))
+    log_write('Precision@5    %.4f' % (results_dict['test_metrics']['precision@5']))
+
+    log_write('AURoC    %.4f' % (results_dict['test_metrics']['auroc']))
+
     log_write('')
 
     log_write(('XCE     ' + '%-10s' * 4) % ('ECE', 'MCE', 'ICE', 'OVC'))

@@ -13,10 +13,14 @@ import evaluation
 
 def train(args):
 
+    
     N_epochs            = eval(args['training']['n_epochs'])
     beta                = eval(args['training']['beta_IB'])
+    alpha               = eval(args['training']['alpha_klj'])
     train_nll           = bool(not eval(args['ablations']['no_NLL_term']))
     train_class_nll     = eval(args['ablations']['class_NLL'])
+    train_ib_klj        = eval(args['training']['ib_klj'])
+    train_cnll_klj      = eval(args['training']['cnll_klj'])
     label_smoothing     = eval(args['data']['label_smoothing'])
     grad_clip           = eval(args['training']['clip_grad_norm'])
     train_vib           = eval(args['ablations']['vib'])
@@ -59,6 +63,9 @@ def train(args):
                     'acc_val',
                     'delta_mu_val']
 
+    if train_ib_klj:
+        plot_columns.append('reg_KLJ_tr')
+
     train_loss_names = [l for l in plot_columns if l[-3:] == '_tr']
     val_loss_names   = [l for l in plot_columns if l[-4:] == '_val']
 
@@ -89,7 +96,11 @@ def train(args):
         beta_x = 2. / (1 + beta)
         beta_y = 2. * beta / (1 + beta)
     else:
-        beta_x, beta_y = 0., 1.
+        beta_x, beta_y, beta_z = 0., 1.
+
+    if train_ib_klj or train_cnll_klj:
+        print('Training KLJ.')
+        beta_z = alpha
 
     try:
         for i_epoch in range(N_epochs):
@@ -101,7 +112,12 @@ def train(args):
                 losses = inn(x, y)
 
                 if train_class_nll:
-                    loss = 2. * losses['L_cNLL_tr']
+                    if train_cnll_klj:
+                        loss = 2. * losses['L_cNLL_tr'] + beta_z * losses['reg_KLJ_tr']
+                    else:
+                        loss = 2. * losses['L_cNLL_tr']
+                elif train_ib_klj:
+                    loss = beta_x * losses['L_x_tr'] - beta_y * losses['L_y_tr'] + beta_z * losses['reg_KLJ_tr']
                 else:
                     loss = beta_x * losses['L_x_tr'] - beta_y * losses['L_y_tr']
                 loss.backward()
@@ -150,6 +166,7 @@ def train(args):
                 inn.save(join(output_dir, f'model_{i_epoch}{ensemble_str}.pt'))
             if (i_epoch % interval_figure) == 0 and not inn.feed_forward and not train_vib:
                 evaluation.val_plots(join(output_dir, f'figs_{i_epoch}{ensemble_str}.pdf'), inn, dataset)
+
     except:
         if save_on_crash:
             inn.save(join(output_dir, f'model_ABORT{ensemble_str}.pt'))
