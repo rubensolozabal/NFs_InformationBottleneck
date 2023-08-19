@@ -2,7 +2,7 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Forked from https://github.com/vislearn/IB-INN
 
-The following code contains the modification in the FreIA blocks required for KL regularization. 
+The following code contains the modification in the FrEIA blocks required for KL regularization. 
 
 **Requirements:**
 ::
